@@ -185,3 +185,172 @@ For questions or support, please contact [ysf.yildiz11@gmail.com)](mailto:ysf.yi
 ---
 
  2025 SecMan Security Platform. All rights reserved.
+
+# SecMan - Security Management Platform
+
+SecMan is a comprehensive security management platform that integrates multiple vulnerability scanners including Acunetix, OWASP ZAP, and Semgrep.
+
+## Features
+
+- **Multi-Scanner Integration**: Supports Acunetix, OWASP ZAP, and Semgrep
+- **Vulnerability Management**: Centralized vulnerability tracking and reporting
+- **User Management**: Role-based access control with company isolation
+- **Dashboard**: Real-time security metrics and analytics
+- **Report Generation**: Automated security reports
+
+## Technology Stack
+
+- **Backend**: Go (Gin framework)
+- **Frontend**: React (Vite)
+- **Database**: PostgreSQL
+- **Cache**: Redis
+- **Containerization**: Docker & Docker Compose
+
+## Docker Deployment
+
+### Prerequisites
+
+- Docker
+- Docker Compose
+
+### Quick Start
+
+1. **Clone the repository**:
+```bash
+git clone <repository-url>
+cd secman
+```
+
+2. **Start the application**:
+```bash
+docker-compose up -d
+```
+
+3. **Access the application**:
+   - Application: http://localhost:4040
+   - Health Check: http://localhost:4040/health
+
+### Services
+
+The Docker setup includes a single all-in-one container:
+
+- **secman_all_in_one**: Contains all services in one container
+  - **Port 4040**: Main application (Go backend + React frontend)
+  - **Port 5432**: PostgreSQL database with pre-loaded data
+  - **Port 6379**: Redis cache for session management
+
+### Database Initialization
+
+The database is automatically initialized with:
+- Schema creation with UUID support
+- Sample companies, users, and scanner settings
+- Historical scan data and findings
+
+### Default Credentials
+
+After deployment, you can use these default accounts:
+
+- **Admin**: admin@admin.com / admin123
+- **User**: ysf.yildiz11@gmail.com / password
+
+### Environment Variables
+
+The application supports the following environment variables:
+
+- `DB_HOST`: Database host (default: localhost)
+- `DB_PORT`: Database port (default: 5432)
+- `DB_USER`: Database user (default: lutenix)
+- `DB_PASSWORD`: Database password (default: lutenix)
+- `DB_NAME`: Database name (default: lutenix_db)
+- `REDIS_URL`: Redis connection string (default: localhost:6379)
+- `PORT`: Application port (default: 4040)
+
+### Configuration
+
+The application configuration is managed through `config.yaml`. Update scanner API keys and endpoints as needed:
+
+```yaml
+acunetix_ip: "192.168.1.6"
+acunetix_port: 3443
+acunetix_apikey: "your-acunetix-api-key"
+
+zap_apikey: "your-zap-api-key"
+
+semgrep_apikey: "your-semgrep-api-key"
+```
+
+### Health Checks
+
+The all-in-one container includes comprehensive health checks:
+- Database: PostgreSQL ready check
+- Redis: Ping check  
+- Application: HTTP health endpoint
+- Uses supervisord to manage all services
+
+### Logs
+
+Application logs are stored in the `app_logs` Docker volume and can be accessed with:
+
+```bash
+docker-compose logs -f secman
+```
+
+Or check individual service logs:
+
+```bash
+# View all logs
+docker exec secman_all_in_one tail -f /var/log/supervisor/*.log
+
+# View app logs
+docker exec secman_all_in_one tail -f /var/log/supervisor/secman-app.log
+
+# View database logs  
+docker exec secman_all_in_one tail -f /var/log/supervisor/postgresql.log
+
+# View Redis logs
+docker exec secman_all_in_one tail -f /var/log/supervisor/redis.log
+```
+
+### Stopping the Application
+
+```bash
+docker-compose down
+```
+
+To remove all data (including database):
+
+```bash
+docker-compose down -v
+```
+
+### Development
+
+For development with hot reloading:
+
+```bash
+# Backend development
+go run main.go
+
+# Frontend development  
+npm run dev
+```
+
+### Troubleshooting
+
+1. **Port conflicts**: Ensure ports 4040, 5432, and 6379 are available
+2. **Permission issues**: Make sure Docker has appropriate permissions
+3. **Database connection**: Check if PostgreSQL service is healthy
+4. **Redis connection**: Verify Redis service is running
+
+### API Documentation
+
+The API endpoints are grouped under `/api` prefix:
+
+- `/api/auth/*` - Authentication endpoints
+- `/api/dashboard/*` - Dashboard data
+- `/api/acunetix/*` - Acunetix scanner integration
+- `/api/zap/*` - OWASP ZAP scanner integration
+- `/api/semgrep/*` - Semgrep scanner integration
+- `/api/admin/*` - Admin management
+
+Visit `/health` for application health status.

@@ -1,0 +1,169 @@
+FROM node:18-alpine AS frontend-builder
+WORKDIR /frontend
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Backend build stage  
+FROM golang:1.22.5-alpine AS backend-builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+# Production stage with PostgreSQL + Redis + App + Nginx
+FROM ubuntu:22.04
+
+# Set environment variables to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Istanbul
+
+# Install dependencies including nginx
+RUN apt-get update && apt-get install -y \
+    postgresql-14 \
+    postgresql-client-14 \
+    postgresql-contrib-14 \
+    redis-server \
+    nginx \
+    supervisor \
+    wget \
+    ca-certificates \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# Stop PostgreSQL service and clean up data directory
+RUN service postgresql stop || true && \
+    rm -rf /var/lib/postgresql/14/main && \
+    mkdir -p /var/lib/postgresql/14/main && \
+    chown postgres:postgres /var/lib/postgresql/14/main && \
+    chmod 700 /var/lib/postgresql/14/main
+
+# Configure PostgreSQL
+RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/14/main/pg_hba.conf && \
+    echo "listen_addresses='*'" >> /etc/postgresql/14/main/postgresql.conf
+
+# Configure Redis
+RUN sed -i 's/bind 127.0.0.1 ::1/bind 0.0.0.0/' /etc/redis/redis.conf && \
+    sed -i 's/protected-mode yes/protected-mode no/' /etc/redis/redis.conf
+
+# Configure Nginx
+RUN rm /etc/nginx/sites-enabled/default
+
+# Create and initialize PostgreSQL data directory
+USER postgres
+RUN /usr/lib/postgresql/14/bin/initdb -D /var/lib/postgresql/14/main
+
+# Create user and database
+RUN /usr/lib/postgresql/14/bin/pg_ctl -D /var/lib/postgresql/14/main -l /var/log/postgresql/postgresql.log start && \
+    sleep 5 && \
+    psql --command "CREATE USER lutenix WITH SUPERUSER PASSWORD 'lutenix';" && \
+    createdb -O lutenix lutenix_db && \
+    /usr/lib/postgresql/14/bin/pg_ctl -D /var/lib/postgresql/14/main stop
+
+# Switch back to root
+USER root
+
+# Create application directory
+WORKDIR /app
+
+# Copy backend binary
+COPY --from=backend-builder /app/main .
+
+# Copy frontend build files to nginx web root
+COPY --from=frontend-builder /frontend/dist /var/www/html
+
+# Copy config file
+COPY config.yaml .
+
+# Copy database initialization files
+COPY database/init ./database/init
+
+# Create nginx configuration for frontend
+RUN echo 'server { \
+    listen 80; \
+    server_name localhost; \
+    root /var/www/html; \
+    index index.html; \
+    \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    \
+    location /api { \
+        proxy_pass http://localhost:4040; \
+        proxy_set_header Host $host; \
+        proxy_set_header X-Real-IP $remote_addr; \
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
+        proxy_set_header X-Forwarded-Proto $scheme; \
+    } \
+}' > /etc/nginx/sites-available/frontend
+
+# Enable the nginx site
+RUN ln -s /etc/nginx/sites-available/frontend /etc/nginx/sites-enabled/
+
+# Create supervisor configuration directory
+RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d
+
+# Create supervisord configuration file
+RUN printf '[supervisord]\n\
+nodaemon=true\n\
+user=root\n\
+logfile=/var/log/supervisor/supervisord.log\n\
+pidfile=/var/run/supervisord.pid\n\
+\n\
+[program:postgresql]\n\
+user=postgres\n\
+command=/usr/lib/postgresql/14/bin/postgres -D /var/lib/postgresql/14/main\n\
+autostart=true\n\
+autorestart=true\n\
+stderr_logfile=/var/log/supervisor/postgresql_stderr.log\n\
+stdout_logfile=/var/log/supervisor/postgresql_stdout.log\n\
+\n\
+[program:redis]\n\
+command=/usr/bin/redis-server /etc/redis/redis.conf\n\
+autostart=true\n\
+autorestart=true\n\
+stderr_logfile=/var/log/supervisor/redis_stderr.log\n\
+stdout_logfile=/var/log/supervisor/redis_stdout.log\n\
+\n\
+[program:nginx]\n\
+command=/usr/sbin/nginx -g "daemon off;"\n\
+autostart=true\n\
+autorestart=true\n\
+stderr_logfile=/var/log/supervisor/nginx_stderr.log\n\
+stdout_logfile=/var/log/supervisor/nginx_stdout.log\n\
+\n\
+[program:initdb]\n\
+command=/app/init-db.sh\n\
+autostart=true\n\
+autorestart=false\n\
+stderr_logfile=/var/log/supervisor/initdb_stderr.log\n\
+stdout_logfile=/var/log/supervisor/initdb_stdout.log\n\
+\n\
+[program:backend]\n\
+command=/app/main\n\
+autostart=true\n\
+autorestart=true\n\
+stderr_logfile=/var/log/supervisor/backend_stderr.log\n\
+stdout_logfile=/var/log/supervisor/backend_stdout.log\n' > /etc/supervisor/conf.d/supervisord.conf
+
+# Copy and make init script executable
+COPY docker/init-db.sh /app/init-db.sh
+RUN chmod +x /app/init-db.sh
+
+# Ensure proper permissions
+RUN chown -R postgres:postgres /var/lib/postgresql && \
+    mkdir -p /var/log/postgresql && \
+    chown postgres:postgres /var/log/postgresql
+
+# Expose ports (80 for frontend, 4040 for backend API)
+EXPOSE 80 4040 5432 6379
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
+
+# Start supervisord
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

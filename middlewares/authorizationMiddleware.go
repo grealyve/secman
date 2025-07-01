@@ -15,6 +15,7 @@ var permissionMap = map[string]map[string][]string{
 		"scanner": {"use", "configure", "read", "create", "update", "delete"},
 		"asset":   {"read", "create", "update", "delete"},
 		"user":    {"read", "create", "update", "delete", "logout"},
+		"admin":   {"create", "read", "update", "delete"},
 	},
 	"user": {
 		"scan":    {"create", "read", "update", "delete"},

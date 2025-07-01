@@ -18,12 +18,12 @@ func AdminRoutes(router *gin.Engine) {
 	adminAuthenticated := admin.Use(middlewares.Authentication())
 	{
 		// adminAuthenticated.DELETE("/deleteUser", middlewares.Authorization("user", "delete"), userController.DeleteUser)
-		adminAuthenticated.POST("/createCompany", middlewares.Authorization("user", "create"), userController.CreateCompany)
-		adminAuthenticated.POST("/addCompanyUser", middlewares.Authorization("user", "update"), userController.AddUserToCompany) 
-		adminAuthenticated.POST("/makeAdmin", middlewares.Authorization("user", "update"), userController.MakeAdmin)
-		adminAuthenticated.POST("/makeUser", middlewares.Authorization("user", "update"), userController.MakeUser)
-		adminAuthenticated.POST("/deleteUser", middlewares.Authorization("user", "delete"), userController.DeleteUser)
-		adminAuthenticated.GET("/getUsers", middlewares.Authorization("user", "read"), userController.GetUsers)
+		adminAuthenticated.POST("/createCompany", middlewares.Authorization("admin", "create"), userController.CreateCompany)
+		adminAuthenticated.POST("/addCompanyUser", middlewares.Authorization("admin", "update"), userController.AddUserToCompany)
+		adminAuthenticated.POST("/makeAdmin", middlewares.Authorization("admin", "update"), userController.MakeAdmin)
+		adminAuthenticated.POST("/makeUser", middlewares.Authorization("admin", "update"), userController.MakeUser)
+		adminAuthenticated.POST("/deleteUser", middlewares.Authorization("admin", "delete"), userController.DeleteUser)
+		adminAuthenticated.GET("/getUsers", middlewares.Authorization("admin", "read"), userController.GetUsers)
 	}
 
 }

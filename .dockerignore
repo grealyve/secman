@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+README.md
+
+# Docker
+docker-compose.yml
+.dockerignore
+
+# Development files
+.vscode
+.idea
+*.log
+
+# Node.js
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+vendor/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+
+# Database dumps (original files, we use init/ folder)
+database/*_202506301810.sql
+
+# Build output (will be created during build)
+dist/
+build/ 
