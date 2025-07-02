@@ -240,3 +240,76 @@ func (us *UserService) GetUsers() ([]models.User, error) {
 	}
 	return users, nil
 }
+
+// GetUserProfileByID retrieves a user profile by user ID
+func (us *UserService) GetUserProfileByID(userID uuid.UUID) (*models.User, error) {
+	var user models.User
+	if err := database.DB.Preload("Company").First(&user, "id = ?", userID).Error; err != nil {
+		logger.Log.Errorf("Error retrieving user profile by ID %s: %v", userID, err)
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetScannerSettingByUserID retrieves scanner settings for a specific user
+func (us *UserService) GetScannerSettingByUserID(userID uuid.UUID) (*models.ScannerSetting, error) {
+	var user models.User
+	if err := database.DB.First(&user, "id = ?", userID).Error; err != nil {
+		logger.Log.Errorf("Error retrieving user for scanner settings by ID %s: %v", userID, err)
+		return nil, err
+	}
+
+	var scannerSetting models.ScannerSetting
+	if err := database.DB.Where("company_id = ?", user.CompanyID).First(&scannerSetting).Error; err != nil {
+		logger.Log.Errorf("Error retrieving scanner setting for user %s: %v", userID, err)
+		return nil, err
+	}
+
+	return &scannerSetting, nil
+}
+
+// GetFindingsByCompanyID retrieves all findings for a specific company
+func (us *UserService) GetFindingsByCompanyID(companyID uuid.UUID) ([]models.Finding, error) {
+	var findings []models.Finding
+
+	err := database.DB.Joins("JOIN scans ON findings.scan_id = scans.id").
+		Where("scans.company_id = ?", companyID).
+		Find(&findings).Error
+
+	if err != nil {
+		logger.Log.Errorf("Error retrieving findings for company %s: %v", companyID, err)
+		return nil, err
+	}
+
+	return findings, nil
+}
+
+func (us *UserService) GetUserByEmailV(email string) (*models.User, error) {
+    var user models.User
+    
+    query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email)
+    err := database.DB.Raw(query).Scan(&user).Error
+    
+    return &user, err
+}
+
+func (us *UserService) SearchUsersV(searchTerm string) ([]models.User, error) {
+    var users []models.User
+    
+    query := "SELECT * FROM users WHERE name LIKE '%" + searchTerm + "%'"
+    err := database.DB.Raw(query).Scan(&users).Error
+    
+    return users, err
+}
+
+func (us *UserService) GetUsersWithFilterV(role string, companyID string) ([]models.User, error) {
+    var users []models.User
+    
+    whereClause := "role = '" + role + "'"
+    if companyID != "" {
+        whereClause += " AND company_id = '" + companyID + "'"
+    }
+    
+    err := database.DB.Raw("SELECT * FROM users WHERE " + whereClause).Scan(&users).Error
+    return users, err
+}

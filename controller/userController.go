@@ -247,7 +247,7 @@ func (uc *UserController) GetMyProfile(c *gin.Context) {
 
 	userID, exists := c.Get("userID")
 	if !exists {
-		logger.Log.Errorln("User ID couldn't find in context") 
+		logger.Log.Errorln("User ID couldn't find in context")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "User ID couldn't find in context"})
 		return
 	}
@@ -271,7 +271,7 @@ func (uc *UserController) GetMyProfile(c *gin.Context) {
 }
 
 func (uc *UserController) UpdateProfile(c *gin.Context) {
-	logger.Log.Debugln("UpdateProfile endpoint called") 
+	logger.Log.Debugln("UpdateProfile endpoint called")
 	userID := c.MustGet("userID").(uuid.UUID)
 	logger.Log.Debugf("UpdateProfile for user ID: %s", userID)
 
@@ -313,7 +313,7 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 }
 
 func (uc *UserController) UpdateScannerSetting(c *gin.Context) {
-	logger.Log.Debugln("UpdateScannerSetting endpoint called") // Debug: Entry point
+	logger.Log.Debugln("UpdateScannerSetting endpoint called // Debug: Entry point")
 	userID := c.MustGet("userID").(uuid.UUID)
 	logger.Log.Debugf("Updating scanner settings for user ID: %s", userID)
 
@@ -358,7 +358,7 @@ func (uc *UserController) UpdateScannerSetting(c *gin.Context) {
 }
 
 func (uc *UserController) GetScannerSetting(c *gin.Context) {
-	logger.Log.Debugln("GetScannerSetting endpoint called") // Debug: Entry Point
+	logger.Log.Debugln("GetScannerSetting endpoint called // Debug: Entry Point")
 	userID := c.MustGet("userID").(uuid.UUID)
 	logger.Log.Debugf("Retrieving scanner settings for user ID: %s", userID)
 
@@ -373,68 +373,202 @@ func (uc *UserController) GetScannerSetting(c *gin.Context) {
 }
 
 func (uc *UserController) MakeAdmin(c *gin.Context) {
-    var request struct {
-        Email string `json:"email" binding:"required"`
-    }
+	var request struct {
+		Email string `json:"email" binding:"required"`
+	}
 
-    if err := c.ShouldBindJSON(&request); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-        return
-    }
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
 
-    err := uc.UserService.MakeAdmin(request.Email)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user role"})
-        return
-    }
+	err := uc.UserService.MakeAdmin(request.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user role"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "User role updated to admin successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "User role updated to admin successfully"})
 }
 
 func (uc *UserController) MakeUser(c *gin.Context) {
-    var request struct {
-        Email string `json:"email" binding:"required"`
-    }
+	var request struct {
+		Email string `json:"email" binding:"required"`
+	}
 
-    if err := c.ShouldBindJSON(&request); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-        return
-    }
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
 
-    err := uc.UserService.MakeUser(request.Email)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user role"})
-        return
-    }
+	err := uc.UserService.MakeUser(request.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user role"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "User role updated to user successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "User role updated to user successfully"})
 }
 
 func (uc *UserController) DeleteUser(c *gin.Context) {
-    var request struct {
-        Email string `json:"email" binding:"required"`
-    }
+	var request struct {
+		Email string `json:"email" binding:"required"`
+	}
 
-    if err := c.ShouldBindJSON(&request); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-        return
-    }
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
 
-    err := uc.UserService.DeleteUser(request.Email)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
-        return
-    }
+	err := uc.UserService.DeleteUser(request.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
 func (uc *UserController) GetUsers(c *gin.Context) {
-    users, err := uc.UserService.GetUsers()
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
-        return
-    }
+	users, err := uc.UserService.GetUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
+		return
+	}
 
-    c.JSON(http.StatusOK, users)
+	c.JSON(http.StatusOK, users)
+}
+
+func (uc *UserController) GetUserProfileByID(c *gin.Context) {
+	logger.Log.Debugln("GetUserProfileByID endpoint called")
+	userID := c.Param("user_id")
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		logger.Log.Errorln("Invalid user ID format:", userID, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	logger.Log.Debugf("Retrieving profile for user ID: %s", userUUID)
+	user, err := uc.UserService.GetUserProfileByID(userUUID)
+	if err != nil {
+		logger.Log.Errorln("User profile not found:", userUUID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	logger.Log.Infoln("User profile retrieved successfully for:", userUUID)
+	c.JSON(http.StatusOK, user)
+}
+
+func (uc *UserController) GetScannerSettingByUserID(c *gin.Context) {
+	logger.Log.Debugln("GetScannerSettingByUserID endpoint called")
+	targetUserID := c.Param("user_id")
+
+	targetUUID, err := uuid.Parse(targetUserID)
+	if err != nil {
+		logger.Log.Errorln("Invalid user ID format:", targetUserID, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	logger.Log.Debugf("Retrieving scanner settings for user ID: %s", targetUUID)
+	scannerSetting, err := uc.UserService.GetScannerSettingByUserID(targetUUID)
+	if err != nil {
+		logger.Log.Errorln("Scanner setting not found for user:", targetUUID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Scanner setting not found"})
+		return
+	}
+
+	logger.Log.Infoln("Scanner settings retrieved successfully for user:", targetUUID)
+	c.JSON(http.StatusOK, scannerSetting)
+}
+
+func (uc *UserController) GetFindingsByCompanyID(c *gin.Context) {
+	logger.Log.Debugln("GetFindingsByCompanyID endpoint called")
+	companyID := c.Param("company_id")
+
+	companyUUID, err := uuid.Parse(companyID)
+	if err != nil {
+		logger.Log.Errorln("Invalid company ID format:", companyID, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid company ID"})
+		return
+	}
+
+	logger.Log.Debugf("Retrieving findings for company ID: %s", companyUUID)
+	findings, err := uc.UserService.GetFindingsByCompanyID(companyUUID)
+	if err != nil {
+		logger.Log.Errorln("Failed to retrieve findings for company:", companyUUID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve findings"})
+		return
+	}
+
+	logger.Log.Infoln("Findings retrieved successfully for company:", companyUUID)
+	c.JSON(http.StatusOK, gin.H{"findings": findings})
+}
+
+// VULNERABLE ENDPOINTS FOR TESTING PURPOSES ONLY
+// These endpoints contain SQL injection vulnerabilities and should not be used in production
+
+func (uc *UserController) GetUserByEmailV(c *gin.Context) {
+	logger.Log.Debugln("GetUserByEmailV endpoint called (VULNERABLE)")
+
+	email := c.Query("email")
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email parameter is required"})
+		return
+	}
+
+	logger.Log.Debugf("Retrieving user by email (VULNERABLE): %s", email)
+	user, err := uc.UserService.GetUserByEmailV(email)
+	if err != nil {
+		logger.Log.Errorln("Failed to retrieve user by email (VULNERABLE):", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+func (uc *UserController) SearchUsersV(c *gin.Context) {
+	logger.Log.Debugln("SearchUsersV endpoint called (VULNERABLE)")
+
+	searchTerm := c.Query("search")
+	if searchTerm == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Search parameter is required"})
+		return
+	}
+
+	logger.Log.Debugf("Searching users with term (VULNERABLE): %s", searchTerm)
+	users, err := uc.UserService.SearchUsersV(searchTerm)
+	if err != nil {
+		logger.Log.Errorln("Failed to search users (VULNERABLE):", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": users})
+}
+
+func (uc *UserController) GetUsersWithFilterV(c *gin.Context) {
+	logger.Log.Debugln("GetUsersWithFilterV endpoint called (VULNERABLE)")
+
+	role := c.Query("role")
+	companyID := c.Query("company_id")
+
+	if role == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role parameter is required"})
+		return
+	}
+
+	logger.Log.Debugf("Getting users with filter (VULNERABLE) - role: %s, company_id: %s", role, companyID)
+	users, err := uc.UserService.GetUsersWithFilterV(role, companyID)
+	if err != nil {
+		logger.Log.Errorln("Failed to get users with filter (VULNERABLE):", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": users})
 }

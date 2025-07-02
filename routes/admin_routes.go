@@ -24,6 +24,15 @@ func AdminRoutes(router *gin.Engine) {
 		adminAuthenticated.POST("/makeUser", middlewares.Authorization("admin", "update"), userController.MakeUser)
 		adminAuthenticated.POST("/deleteUser", middlewares.Authorization("admin", "delete"), userController.DeleteUser)
 		adminAuthenticated.GET("/getUsers", middlewares.Authorization("admin", "read"), userController.GetUsers)
+		adminAuthenticated.GET("/users/:user_id/profile", middlewares.Authorization("admin", "read"), userController.GetUserProfileByID)
+		adminAuthenticated.GET("/users/:user_id/scanner-settings", middlewares.Authorization("admin", "read"), userController.GetScannerSettingByUserID)
+		adminAuthenticated.GET("/companies/:company_id/findings", middlewares.Authorization("admin", "read"), userController.GetFindingsByCompanyID)
+
+		// VULNERABLE ENDPOINTS FOR TESTING PURPOSES ONLY
+		// These endpoints contain SQL injection vulnerabilities and should not be used in production
+		adminAuthenticated.GET("/users/by-email-vuln", middlewares.Authorization("user", "read"), userController.GetUserByEmailV)
+		adminAuthenticated.GET("/users/search-vuln", middlewares.Authorization("user", "read"), userController.SearchUsersV)
+		adminAuthenticated.GET("/users/filter-vuln", middlewares.Authorization("user", "read"), userController.GetUsersWithFilterV)
 	}
 
 }
