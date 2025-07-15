@@ -285,31 +285,41 @@ func (us *UserService) GetFindingsByCompanyID(companyID uuid.UUID) ([]models.Fin
 }
 
 func (us *UserService) GetUserByEmailV(email string) (*models.User, error) {
-    var user models.User
-    
-    query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email)
-    err := database.DB.Raw(query).Scan(&user).Error
-    
-    return &user, err
+	var user models.User
+
+	query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email)
+	err := database.DB.Raw(query).Scan(&user).Error
+
+	return &user, err
 }
 
 func (us *UserService) SearchUsersV(searchTerm string) ([]models.User, error) {
-    var users []models.User
-    
-    query := "SELECT * FROM users WHERE name LIKE '%" + searchTerm + "%'"
-    err := database.DB.Raw(query).Scan(&users).Error
-    
-    return users, err
+	var users []models.User
+
+	query := "SELECT * FROM users WHERE name LIKE '%" + searchTerm + "%'"
+	err := database.DB.Raw(query).Scan(&users).Error
+
+	return users, err
 }
 
 func (us *UserService) GetUsersWithFilterV(role string, companyID string) ([]models.User, error) {
-    var users []models.User
-    
-    whereClause := "role = '" + role + "'"
-    if companyID != "" {
-        whereClause += " AND company_id = '" + companyID + "'"
-    }
-    
-    err := database.DB.Raw("SELECT * FROM users WHERE " + whereClause).Scan(&users).Error
-    return users, err
+	var users []models.User
+
+	whereClause := "role = '" + role + "'"
+	if companyID != "" {
+		whereClause += " AND company_id = '" + companyID + "'"
+	}
+
+	err := database.DB.Raw("SELECT * FROM users WHERE " + whereClause).Scan(&users).Error
+	return users, err
+}
+
+// GetCompanies retrieves all companies for IDOR testing
+func (us *UserService) GetCompanies() ([]models.Company, error) {
+	var companies []models.Company
+	if err := database.DB.Find(&companies).Error; err != nil {
+		logger.Log.Errorf("Error retrieving companies: %v", err)
+		return nil, err
+	}
+	return companies, nil
 }
