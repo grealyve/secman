@@ -768,3 +768,112 @@ func (uc *UserController) GetFindingsByCompanyIDV(c *gin.Context) {
 	logger.Log.Warnf("IDOR VULNERABILITY: Findings retrieved for sequential ID %d (UUID: %s)", companyID, companyUUID)
 	c.JSON(http.StatusOK, gin.H{"findings": findings})
 }
+
+// GetUserCompanyInfoV - IDOR vulnerable endpoint with both user_id and company_id parameters
+func (uc *UserController) GetUserCompanyInfoV(c *gin.Context) {
+	logger.Log.Debugln("GetUserCompanyInfoV endpoint called (VULNERABLE - IDOR)")
+
+	userIDStr := c.Param("user_id")
+	companyIDStr := c.Query("company_id")
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		logger.Log.Errorln("Invalid user ID format:", userIDStr, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	companyID, err := strconv.Atoi(companyIDStr)
+	if err != nil {
+		logger.Log.Errorln("Invalid company ID format:", companyIDStr, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid company ID"})
+		return
+	}
+
+	logger.Log.Debugf("Retrieving user-company info (VULNERABLE - IDOR): user_id=%d, company_id=%d", userID, companyID)
+
+	// Convert sequential IDs to UUIDs - THIS IS THE VULNERABILITY
+	userUUID, err := uc.sequentialIDToUUID(userID, "user")
+	if err != nil {
+		logger.Log.Errorln("Failed to convert user sequential ID to UUID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user info"})
+		return
+	}
+
+	if userUUID == uuid.Nil {
+		logger.Log.Errorln("User not found for ID:", userID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	companyUUID, err := uc.sequentialIDToUUID(companyID, "company")
+	if err != nil {
+		logger.Log.Errorln("Failed to convert company sequential ID to UUID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve company info"})
+		return
+	}
+
+	if companyUUID == uuid.Nil {
+		logger.Log.Errorln("Company not found for ID:", companyID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Company not found"})
+		return
+	}
+
+	// Get user info
+	user, err := uc.UserService.GetUserProfileByID(userUUID)
+	if err != nil {
+		logger.Log.Errorln("User profile not found:", userUUID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Get company info
+	company, err := uc.UserService.GetCompanyByID(companyUUID)
+	if err != nil {
+		logger.Log.Errorln("Company not found:", companyUUID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Company not found"})
+		return
+	}
+
+	// Get scanner settings for the user
+	scannerSetting, err := uc.UserService.GetScannerSettingByUserID(userUUID)
+	if err != nil {
+		logger.Log.Warnln("Scanner setting not found for user:", userUUID, err)
+		scannerSetting = nil
+	}
+
+	// Get recent scans for the company
+	scans, err := uc.UserService.GetScansByCompanyID(companyUUID)
+	if err != nil {
+		logger.Log.Warnln("Scans not found for company:", companyUUID, err)
+		scans = nil
+	}
+
+	logger.Log.Warnf("IDOR VULNERABILITY: User-Company info retrieved - user_id=%d (UUID: %s), company_id=%d (UUID: %s)", userID, userUUID, companyID, companyUUID)
+
+	response := gin.H{
+		"user_info": gin.H{
+			"sequential_id": userID,
+			"uuid":          userUUID,
+			"name":          user.Name,
+			"surname":       user.Surname,
+			"email":         user.Email,
+			"role":          user.Role,
+			"company_id":    user.CompanyID,
+		},
+		"company_info": gin.H{
+			"sequential_id": companyID,
+			"uuid":          companyUUID,
+			"name":          company.Name,
+			"created_at":    company.CreatedAt,
+		},
+		"scanner_settings": scannerSetting,
+		"recent_scans":     scans,
+		"metadata": gin.H{
+			"endpoint":      "user-company-info-vuln",
+			"vulnerability": "IDOR - Insecure Direct Object Reference",
+		},
+	}
+
+	c.JSON(http.StatusOK, response)
+}

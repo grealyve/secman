@@ -323,3 +323,30 @@ func (us *UserService) GetCompanies() ([]models.Company, error) {
 	}
 	return companies, nil
 }
+
+// GetCompanyByID retrieves a company by ID
+func (us *UserService) GetCompanyByID(companyID uuid.UUID) (*models.Company, error) {
+	var company models.Company
+	if err := database.DB.First(&company, "id = ?", companyID).Error; err != nil {
+		logger.Log.Errorf("Error retrieving company by ID %s: %v", companyID, err)
+		return nil, err
+	}
+	return &company, nil
+}
+
+// GetScansByCompanyID retrieves scans for a specific company
+func (us *UserService) GetScansByCompanyID(companyID uuid.UUID) ([]models.Scan, error) {
+	var scans []models.Scan
+
+	err := database.DB.Where("company_id = ?", companyID).
+		Order("created_at DESC").
+		Limit(5). // Get only recent 5 scans
+		Find(&scans).Error
+
+	if err != nil {
+		logger.Log.Errorf("Error retrieving scans for company %s: %v", companyID, err)
+		return nil, err
+	}
+
+	return scans, nil
+}

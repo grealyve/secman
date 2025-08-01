@@ -39,6 +39,7 @@ func AdminRoutes(router *gin.Engine) {
 		adminAuthenticated.GET("/users/:user_id/profile-vuln", middlewares.Authorization("user", "read"), userController.GetUserProfileByIDV)
 		adminAuthenticated.GET("/users/:user_id/scanner-settings-vuln", middlewares.Authorization("user", "read"), userController.GetScannerSettingByUserIDV)
 		adminAuthenticated.GET("/companies/:company_id/findings-vuln", middlewares.Authorization("user", "read"), userController.GetFindingsByCompanyIDV)
+		adminAuthenticated.GET("/users/:user_id/company", middlewares.Authorization("user", "read"), userController.GetUserCompanyInfoV)
 	}
 
 }
