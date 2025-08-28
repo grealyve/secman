@@ -877,3 +877,56 @@ func (uc *UserController) GetUserCompanyInfoV(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+// STORED XSS VULNERABLE ENDPOINT FOR TESTING PURPOSES ONLY (CTF)
+// This endpoint contains stored XSS vulnerabilities and should not be used in production
+func (uc *UserController) UpdateUserProfileV(c *gin.Context) {
+	logger.Log.Debugln("UpdateUserProfileV endpoint called (VULNERABLE - Stored XSS)")
+
+	userID := c.Param("user_id")
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		logger.Log.Errorln("Invalid user ID format:", userID, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var body struct {
+		Name    string `json:"name"`
+		Surname string `json:"surname"`
+		Email   string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		logger.Log.Errorln("Invalid request body for UpdateUserProfileV:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+		return
+	}
+
+	logger.Log.Debugf("UpdateUserProfileV request body (VULNERABLE): %+v", body)
+
+	// VULNERABILITY: No input validation or sanitization
+	// XSS payloads are stored directly to database and logs
+	logger.Log.Infof("STORED XSS VULNERABILITY: Updating user %s with potentially malicious content: name=%s, surname=%s, bio=%s, profile=%s",
+		userUUID, body.Name, body.Surname)
+
+	// Call vulnerable service method
+	err = uc.UserService.UpdateUserProfileV(userUUID, body.Name, body.Surname, body.Email)
+	if err != nil {
+		logger.Log.Errorln("User profile update failed (VULNERABLE):", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Profile couldn't be updated"})
+		return
+	}
+
+	logger.Log.Warnf("STORED XSS VULNERABILITY: User profile updated successfully for ID: %s", userUUID)
+
+	// Return success response with potentially malicious content (another XSS vector)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profile updated successfully",
+		"updated_data": gin.H{
+			"name":    body.Name,    // XSS vector in response
+			"surname": body.Surname, // XSS vector in response
+		},
+		"vulnerability_note": "This endpoint is vulnerable to stored XSS attacks",
+	})
+}

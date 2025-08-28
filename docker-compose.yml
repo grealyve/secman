@@ -4,7 +4,7 @@ services:
   secman:
     build:
       context: .
-      dockerfile: DOCKERFILE
+      dockerfile: dockerfile
     container_name: secman_all_in_one
     restart: always
     ports:

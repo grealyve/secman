@@ -277,6 +277,17 @@ acunetix_apikey: "your-acunetix-api-key"
 zap_apikey: "your-zap-api-key"
 
 semgrep_apikey: "your-semgrep-api-key"
+
+# Database Configuration
+db_host: "localhost"
+db_port: "5432"
+db_user: "lutenix"
+db_pass: "lutenix"
+db_name: "lutenix_db"
+db_sslmode: "disable"
+
+# JWT Secret
+jwt_secret: "your-jwt-secret-key-change-this-in-production"
 ```
 
 ### Health Checks

@@ -1,25 +1,29 @@
 #!/bin/bash
+set -e
 
-# Wait for PostgreSQL to be ready
-echo "Waiting for PostgreSQL to start..."
-until pg_isready -h localhost -p 5432 -U lutenix; do
-  echo "PostgreSQL is not ready yet..."
+echo "[init-db.sh] Waiting for PostgreSQL..."
+while ! pg_isready -h localhost -p 5432 -U postgres; do
   sleep 2
 done
+echo "[init-db.sh] PostgreSQL is ready."
 
-echo "PostgreSQL is ready. Initializing database..."
+if psql -h localhost -U postgres -lqt | cut -d \| -f 1 | grep -qw lutenix_db; then
+    echo "[init-db.sh] Database already exists."
+else
+    echo "[init-db.sh] Creating database and user..."
+    psql -h localhost -v ON_ERROR_STOP=1 --username "postgres" <<-EOSQL
+        CREATE USER lutenix WITH SUPERUSER PASSWORD 'lutenix';
+        CREATE DATABASE lutenix_db OWNER lutenix;
+EOSQL
+    echo "[init-db.sh] Database and user created."
+fi
 
-# Run SQL files in order
+echo "[init-db.sh] Running SQL files..."
 for sql_file in /app/database/init/*.sql; do
   if [ -f "$sql_file" ]; then
-    echo "Executing $sql_file..."
-    PGPASSWORD=lutenix psql -h localhost -U lutenix -d lutenix_db -f "$sql_file"
-    if [ $? -eq 0 ]; then
-      echo "Successfully executed $sql_file"
-    else
-      echo "Error executing $sql_file"
-    fi
+    echo "--> Running $sql_file"
+    psql -h localhost -U lutenix -d lutenix_db -f "$sql_file"
   fi
 done
 
-echo "Database initialization completed!" 
+echo "[init-db.sh] Initialization finished."

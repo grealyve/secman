@@ -40,6 +40,10 @@ func AdminRoutes(router *gin.Engine) {
 		adminAuthenticated.GET("/users/:user_id/scanner-settings-vuln", middlewares.Authorization("user", "read"), userController.GetScannerSettingByUserIDV)
 		adminAuthenticated.GET("/companies/:company_id/findings-vuln", middlewares.Authorization("user", "read"), userController.GetFindingsByCompanyIDV)
 		adminAuthenticated.GET("/users/:user_id/company", middlewares.Authorization("user", "read"), userController.GetUserCompanyInfoV)
+
+		// STORED XSS VULNERABLE ENDPOINTS FOR TESTING PURPOSES ONLY (CTF)
+		// These endpoints contain stored XSS vulnerabilities and should not be used in production
+		adminAuthenticated.POST("/update/users/:user_id", middlewares.Authorization("user", "update"), userController.UpdateUserProfileV)
 	}
 
 }

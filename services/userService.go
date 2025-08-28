@@ -350,3 +350,36 @@ func (us *UserService) GetScansByCompanyID(companyID uuid.UUID) ([]models.Scan, 
 
 	return scans, nil
 }
+
+// STORED XSS VULNERABLE SERVICE METHOD FOR TESTING PURPOSES ONLY (CTF)
+// This method contains stored XSS vulnerabilities and should not be used in production
+func (us *UserService) UpdateUserProfileV(userID uuid.UUID, name, surname, email string) error {
+	logger.Log.Warnln("UpdateUserProfileV service method called (VULNERABLE - Stored XSS)")
+
+	// VULNERABILITY: No input validation or sanitization
+	// XSS payloads are stored directly to database using raw SQL
+	updates := map[string]any{}
+
+	if name != "" {
+		updates["name"] = name // XSS payload stored directly
+		logger.Log.Warnf("STORED XSS VULNERABILITY: Storing potentially malicious name: %s", name)
+	}
+	if surname != "" {
+		updates["surname"] = surname // XSS payload stored directly
+		logger.Log.Warnf("STORED XSS VULNERABILITY: Storing potentially malicious surname: %s", surname)
+	}
+	if email != "" {
+		updates["email"] = email
+	}
+
+	// Use GORM but still vulnerable since no sanitization
+	result := database.DB.Model(&models.User{}).Where("id = ?", userID).Updates(updates)
+
+	if result.Error != nil {
+		logger.Log.Errorf("VULNERABLE UPDATE ERROR: %v", result.Error)
+		return result.Error
+	}
+
+	logger.Log.Warnf("STORED XSS VULNERABILITY: User profile updated successfully with potentially malicious content for user ID: %s", userID)
+	return nil
+}
