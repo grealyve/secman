@@ -1,21 +1,12 @@
 package middlewares
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 )
 
 // Fixes the CORS issues
 func CorsMiddleware() gin.HandlerFunc {
-
-	expectedHost := "localhost:4040"
-
 	return func(c *gin.Context) {
-		if c.Request.Host != expectedHost {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid host header"})
-			return
-		}
 
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
