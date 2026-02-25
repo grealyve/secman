@@ -16,7 +16,7 @@ steps:
     buildAnalyzerParams: '-gopath C:\Users\Administrator\go -goroot C:\Program Files\Go'
     fortifyBuildId: 'secman'
     fortifyScanType: 'LocalScan'
-    additionalScanParams: '-scan -f azure.fpr'
+    additionalScanParams: ''
     runFortifyUpload: true
     fortifyServerName: 'SSC Connection'
     fortifyApplicationName: 'secman'
