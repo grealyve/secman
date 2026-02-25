@@ -7,19 +7,19 @@ steps:
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo Selam Canım Ben Amcanım
-  displayName: 'Run a multi-line script'
-
+- script: dir
+  displayName: 'Where am I?'
+    
 - task: FortifySCA@7
   inputs:
     applicationType: 'other'
-    buildToolOptions: '-gopath C:\Users\Administrator\go -goroot C:\Program Files\Go'
-    fortifySourceTranslate: '**\*.go'
+    buildAnalyzerParams: '-gopath C:\Users\Administrator\go -goroot C:\Program Files\Go'
     fortifyBuildId: 'secman'
     fortifyScanType: 'LocalScan'
+    additionalScanParams: '-scan -f azure.fpr'
     runFortifyUpload: true
     fortifyServerName: 'SSC Connection'
     fortifyApplicationName: 'secman'
     fortifyApplicationVersion: 'azure'
+    # fortifyBuildFailureCriteria: '[fortify priority order]:critical'
+    # taskResultForBuildFailureCriteria: 'FAIL'
