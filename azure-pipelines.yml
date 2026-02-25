@@ -1,0 +1,25 @@
+trigger:
+- main
+
+pool: Default
+
+steps:
+- script: echo Hello, world!
+  displayName: 'Run a one-line script'
+
+- script: |
+    echo Add other tasks to build, test, and deploy your project.
+    echo Selam Canım Ben Amcanım
+  displayName: 'Run a multi-line script'
+
+- task: FortifySCA@7
+  inputs:
+    applicationType: 'other'
+    buildToolOptions: '-gopath C:\Users\Administrator\go -goroot C:\Program Files\Go'
+    fortifySourceTranslate: '**\*.go'
+    fortifyBuildId: 'secman'
+    fortifyScanType: 'LocalScan'
+    runFortifyUpload: true
+    fortifyServerName: 'SSC Connection'
+    fortifyApplicationName: 'secman'
+    fortifyApplicationVersion: 'azure'
