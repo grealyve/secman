@@ -7,7 +7,7 @@ steps:
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
 
-- script: dir
+- script: echo %NODE_EXTRA_CA_CERTS%
   displayName: 'Where am I?'
     
 - task: FortifySCA@7
