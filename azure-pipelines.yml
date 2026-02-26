@@ -9,5 +9,8 @@ steps:
 
 - script: |
     echo %NODE_EXTRA_CA_CERTS%
-    dir
-  displayName: 'Where am I?'
+    sourceanalyzer -b fullstack -clean
+    sourceanalyzer -b fullstack -gopath C:\Users\Administrator\go -goroot C:\Program Files\Go .
+    sourceanalyzer -b fullstack "./frontend/**/*.js"
+    sourceanalyzer -b fullstack -scan -f fullstack.fpr
+  displayName: 'Scan'
