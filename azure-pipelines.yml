@@ -11,6 +11,6 @@ steps:
     echo %NODE_EXTRA_CA_CERTS%
     sourceanalyzer -b fullstack -clean
     sourceanalyzer -b fullstack -gopath C:\Users\Administrator\go -goroot C:\Program Files\Go .
-    sourceanalyzer -b fullstack "./frontend/**/*.js"
-    sourceanalyzer -b fullstack -scan -f fullstack.fpr
+    sourceanalyzer -b fullstack "./**/*.js" -Dcom.fortify.sca.exclude.node.modules=false
+    sourceanalyzer -b fullstack -scan -f fullstack2.fpr
   displayName: 'Scan'
