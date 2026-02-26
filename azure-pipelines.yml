@@ -1,1 +1,13 @@
+trigger:
+- main
 
+pool: Default
+
+steps:
+- script: echo Hello, world!
+  displayName: 'Run a one-line script'
+
+- script: |
+    echo %NODE_EXTRA_CA_CERTS%
+    dir
+  displayName: 'Where am I?'
