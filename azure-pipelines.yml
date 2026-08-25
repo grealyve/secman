@@ -11,7 +11,8 @@ steps:
 - script: echo %NODE_EXTRA_CA_CERTS%
   displayName: 'Where am I?'
 
-- script: go list -f '{{define "M"}}{{.Path}} {{.Version}}{{end}}{{with .Module}}{{if not .Main}}{{if .Replace}}{{template "M" .Replace}}{{else}}{{template "M" .}}{{end}}{{end}}{{end}}' -compiled -deps | sort -u > go.list
+- powershell: |
+    go list -f '{{define "M"}}{{.Path}} {{.Version}}{{end}}{{with .Module}}{{if not .Main}}{{if .Replace}}{{template "M" .Replace}}{{else}}{{template "M" .}}{{end}}{{end}}{{end}}' -compiled -deps | Select-Object -Unique | Out-File -FilePath go.list -Encoding utf8
   displayName: 'Create go.list file'
     
 - task: SonatypeEvaluate@2
