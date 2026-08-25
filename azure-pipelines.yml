@@ -12,8 +12,9 @@ steps:
   displayName: 'Where am I?'
 
 - powershell: |
-    $template = '{{define ` "M` "}}{{.Path}} {{.Version}}{{end}}{{with .Module}}{{if not .Main}}{{if .Replace}}{{template ` "M` " .Replace}}{{else}}{{template ` "M` " .}}{{end}}{{end}}{{end}}'
-    go list -f $template -compiled -deps | Select-Object -Unique | Out-File -FilePath go.list -Encoding utf8
+    go list -f $env:GO_TEMPLATE -compiled -deps | Select-Object -Unique | Out-File -FilePath go.list -Encoding utf8
+  env:
+    GO_TEMPLATE: '{{define "M"}}{{.Path}} {{.Version}}{{end}}{{with .Module}}{{if not .Main}}{{if .Replace}}{{template "M" .Replace}}{{else}}{{template "M" .}}{{end}}{{end}}{{end}}'
   displayName: 'Create go.list file'
     
 - task: SonatypeEvaluate@2
