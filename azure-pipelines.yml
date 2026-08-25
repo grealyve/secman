@@ -18,7 +18,7 @@ steps:
 - task: SonatypeEvaluate@2
   inputs:
     nexusIqService: 'Lifecycle'
-    applicationId: 'ef6260b689fc4646b3d3769154825426'
+    applicationId: 'secman__grealyve'
     stage: 'Build'
     scanTargets: '**/*.jar, **/*.war, **/*.ear, **/*.zip, **/*.tar.gz, **/go.sum, **/go.list, **/Gopkg.lock'
     resultFile: 'lifecycle-output'
