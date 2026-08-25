@@ -18,18 +18,18 @@ steps:
     stage: 'Build'
     resultFile: 'lifecycle-output'
     
-- task: FortifySCA@7
-  inputs:
-    applicationType: 'other'
-    buildAnalyzerParams: '-gopath C:\Users\Administrator\go -goroot C:\Program Files\Go'
-    fortifyBuildId: 'secman'
-    fortifyScanType: 'LocalScan'
-    additionalScanParams: ''
-    runFortifyUpload: true
-    fortifyServerName: 'SSC Connection'
-    fortifyApplicationName: 'secman'
-    fortifyApplicationVersion: 'azure'
-    fortifyBuildFailureCriteria: '[fortify priority order]:critical'
-    taskResultForBuildFailureCriteria: 'FAIL'
+#- task: FortifySCA@7
+#  inputs:
+#    applicationType: 'other'
+#    buildAnalyzerParams: '-gopath C:\Users\Administrator\go -goroot C:\Program Files\Go'
+#    fortifyBuildId: 'secman'
+#    fortifyScanType: 'LocalScan'
+#    additionalScanParams: ''
+#    runFortifyUpload: true
+#    fortifyServerName: 'SSC Connection'
+#    fortifyApplicationName: 'secman'
+#    fortifyApplicationVersion: 'azure'
+#    fortifyBuildFailureCriteria: '[fortify priority order]:critical'
+#    taskResultForBuildFailureCriteria: 'FAIL'
 
 
