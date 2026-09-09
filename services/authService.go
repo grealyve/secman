@@ -5,8 +5,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/grealyve/lutenix/config"
-	"github.com/grealyve/lutenix/logger"
+	"github.com/grealyve/secman/config"
+	"github.com/grealyve/secman/logger"
 	"golang.org/x/crypto/bcrypt"
 )
 

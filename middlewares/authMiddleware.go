@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/grealyve/lutenix/config"
-	"github.com/grealyve/lutenix/database"
+	"github.com/grealyve/secman/config"
+	"github.com/grealyve/secman/database"
 )
 
 func Authentication() gin.HandlerFunc {

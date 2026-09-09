@@ -2,8 +2,8 @@ package services
 
 import (
 	"github.com/google/uuid"
-	"github.com/grealyve/lutenix/database"
-	"github.com/grealyve/lutenix/models"
+	"github.com/grealyve/secman/database"
+	"github.com/grealyve/secman/models"
 )
 
 type DashboardService struct {}

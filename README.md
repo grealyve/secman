@@ -259,9 +259,9 @@ The application supports the following environment variables:
 
 - `DB_HOST`: Database host (default: localhost)
 - `DB_PORT`: Database port (default: 5432)
-- `DB_USER`: Database user (default: lutenix)
-- `DB_PASSWORD`: Database password (default: lutenix)
-- `DB_NAME`: Database name (default: lutenix_db)
+- `DB_USER`: Database user (default: secman)
+- `DB_PASSWORD`: Database password (default: secman)
+- `DB_NAME`: Database name (default: secman_db)
 - `REDIS_URL`: Redis connection string (default: localhost:6379)
 - `PORT`: Application port (default: 4040)
 
@@ -281,9 +281,9 @@ semgrep_apikey: "your-semgrep-api-key"
 # Database Configuration
 db_host: "localhost"
 db_port: "5432"
-db_user: "lutenix"
-db_pass: "lutenix"
-db_name: "lutenix_db"
+db_user: "secman"
+db_pass: "secman"
+db_name: "secman_db"
 db_sslmode: "disable"
 
 # JWT Secret

@@ -1,4 +1,4 @@
-module github.com/grealyve/lutenix
+module github.com/grealyve/secman
 
 go 1.22.5
 

@@ -12,10 +12,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/grealyve/lutenix/database"
-	"github.com/grealyve/lutenix/logger"
-	"github.com/grealyve/lutenix/models"
-	"github.com/grealyve/lutenix/utils"
+	"github.com/grealyve/secman/database"
+	"github.com/grealyve/secman/logger"
+	"github.com/grealyve/secman/models"
+	"github.com/grealyve/secman/utils"
 )
 
 var (
@@ -163,11 +163,11 @@ func (r *ReportService) CreateAcunetixReport(targetSlice []string, userID uuid.U
 
 /*
 Report Generate ZAP
-/JSON/reports/action/generate/?apikey=6f1ebonoa9980csb8ls2895rl0&title=test&template=modern&theme=&description=&contexts=&sites=http://lutenix.com|http://hedef.com&sections=&includedConfidences=&includedRisks=&reportFileName=&reportFileNamePattern=&reportDir=&display=
+/JSON/reports/action/generate/?apikey=6f1ebonoa9980csb8ls2895rl0&title=test&template=modern&theme=&description=&contexts=&sites=http://secman.com|http://hedef.com&sections=&includedConfidences=&includedRisks=&reportFileName=&reportFileNamePattern=&reportDir=&display=
 
 Result:
 {
-	"generate":"C:\\Users\\Grealyve\\2025-04-13-ZAP-Report-lutenix.com.html"
+	"generate":"C:\\Users\\Grealyve\\2025-04-13-ZAP-Report-secman.com.html"
 }
 */
 

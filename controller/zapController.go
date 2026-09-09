@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/grealyve/lutenix/logger"
-	"github.com/grealyve/lutenix/services"
+	"github.com/grealyve/secman/logger"
+	"github.com/grealyve/secman/services"
 	"gorm.io/gorm"
 )
 

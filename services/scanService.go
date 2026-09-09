@@ -6,9 +6,9 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/grealyve/lutenix/database"
-	"github.com/grealyve/lutenix/logger"
-	"github.com/grealyve/lutenix/models"
+	"github.com/grealyve/secman/database"
+	"github.com/grealyve/secman/logger"
+	"github.com/grealyve/secman/models"
 )
 
 type ScanService struct {

@@ -2,8 +2,8 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/grealyve/lutenix/controller"
-	"github.com/grealyve/lutenix/middlewares"
+	"github.com/grealyve/secman/controller"
+	"github.com/grealyve/secman/middlewares"
 )
 
 var acunetixController = controller.NewAcunetixController()

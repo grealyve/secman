@@ -16,9 +16,9 @@ services:
       - redis_data:/var/lib/redis
       - app_logs:/var/log/supervisor
     environment:
-      - POSTGRES_PASSWORD=lutenix
+      - POSTGRES_PASSWORD=secman
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4040/health && pg_isready -h localhost -p 5432 -U lutenix && redis-cli ping"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4040/health && pg_isready -h localhost -p 5432 -U secman && redis-cli ping"]
       interval: 30s
       timeout: 15s
       start_period: 60s

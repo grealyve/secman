@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"github.com/grealyve/lutenix/logger"
+	"github.com/grealyve/secman/logger"
 	"gopkg.in/yaml.v3"
 )
 

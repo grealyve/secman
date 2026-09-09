@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/gin-gonic/gin"
-	"github.com/grealyve/lutenix/logger"
+	"github.com/grealyve/secman/logger"
 )
 
 var permissionMap = map[string]map[string][]string{

@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/grealyve/lutenix/logger" // Keep logger if used
-	"github.com/grealyve/lutenix/services"
+	"github.com/grealyve/secman/logger" // Keep logger if used
+	"github.com/grealyve/secman/services"
 )
 
 type SemgrepController struct {

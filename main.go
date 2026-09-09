@@ -5,18 +5,22 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/grealyve/lutenix/config"
-	"github.com/grealyve/lutenix/controller"
-	"github.com/grealyve/lutenix/database"
-	"github.com/grealyve/lutenix/logger"
-	"github.com/grealyve/lutenix/middlewares"
-	"github.com/grealyve/lutenix/routes"
+	"github.com/grealyve/secman/config"
+	"github.com/grealyve/secman/controller"
+	"github.com/grealyve/secman/database"
+	"github.com/grealyve/secman/logger"
+	"github.com/grealyve/secman/middlewares"
+	"github.com/grealyve/secman/routes"
+	"github.com/grealyve/secman/services/vulnjwt"
 )
 
 func main() {
 	config.LoadConfig()
 	logger.Log.Println("Configuration loaded successfully")
 	authController := controller.NewAuthController()
+
+	// BİLEREK zafiyetli JWT test yüzeyi için RSA baseline anahtarlarını hazırla.
+	vulnjwt.InitKeys()
 
 	// Connect to the database
 	dsn := "host=" + config.ConfigInstance.DB_HOST +
@@ -63,6 +67,7 @@ func main() {
 	routes.SemgrepRoutes(router)
 	routes.UserRoutes(router, authController)
 	routes.ZapRoutes(router)
+	routes.VulnJWTRoutes(router) // BİLEREK zafiyetli JWT test yüzeyi
 
 	// Catch-all route for SPA (Single Page Application)
 	router.NoRoute(func(c *gin.Context) {

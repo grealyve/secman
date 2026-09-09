@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/grealyve/lutenix/logger"
-	"github.com/grealyve/lutenix/models"
+	"github.com/grealyve/secman/logger"
+	"github.com/grealyve/secman/models"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

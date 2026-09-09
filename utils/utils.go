@@ -8,10 +8,10 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/grealyve/lutenix/config"
-	"github.com/grealyve/lutenix/database"
-	"github.com/grealyve/lutenix/logger"
-	"github.com/grealyve/lutenix/models"
+	"github.com/grealyve/secman/config"
+	"github.com/grealyve/secman/database"
+	"github.com/grealyve/secman/logger"
+	"github.com/grealyve/secman/models"
 )
 
 var (

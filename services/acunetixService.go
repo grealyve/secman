@@ -6,9 +6,9 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	"github.com/grealyve/lutenix/logger"
-	"github.com/grealyve/lutenix/models"
-	"github.com/grealyve/lutenix/utils"
+	"github.com/grealyve/secman/logger"
+	"github.com/grealyve/secman/models"
+	"github.com/grealyve/secman/utils"
 	"gorm.io/gorm"
 )
 

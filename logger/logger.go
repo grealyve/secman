@@ -14,7 +14,7 @@ var (
 
 func init() {
 	// The file needs to exist prior
-	f, err := os.OpenFile("lutenix.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile("secman.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 
 	if err != nil {
 		logging.Fatalf("error opening file: %v", err)
