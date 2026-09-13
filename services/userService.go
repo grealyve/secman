@@ -241,6 +241,19 @@ func (us *UserService) GetUsers() ([]models.User, error) {
 	return users, nil
 }
 
+// GetUsersByCompanyID, bir tenant'taki (company_id) tüm kullanıcıları döner. Tenant
+// izolasyonu YALNIZ çağıranın token'daki (forge edilebilir) tenant_id claim'ine dayanır
+// (VULN-13 tenant BOLA). Sunucu-tarafı tenant sahiplik kontrolü YOKTUR.
+func (us *UserService) GetUsersByCompanyID(companyID string) ([]models.User, error) {
+	var users []models.User
+	err := database.DB.Where("company_id = ?", companyID).Find(&users).Error
+	if err != nil {
+		logger.Log.Errorf("Error retrieving users by company: %v", err)
+		return nil, err
+	}
+	return users, nil
+}
+
 // GetUserProfileByID retrieves a user profile by user ID
 func (us *UserService) GetUserProfileByID(userID uuid.UUID) (*models.User, error) {
 	var user models.User

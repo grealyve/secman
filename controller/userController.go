@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -21,6 +22,43 @@ func NewUserController() *UserController {
 	return &UserController{
 		UserService: &services.UserService{},
 	}
+}
+
+// GetAllUsersVuln, MERGE (LTX) sonrası privilege-escalation yüzeyidir (VULN-10).
+// Erişim kararı YALNIZ token'daki (forge edilebilir) `role` claim'ine bakılarak verilir;
+// sunucu-tarafı rol store'u yoktur. Saldırgan role=user token'ını alg:none/algorithm-
+// confusion ile role=admin'e forge ederek tüm kullanıcı listesine erişir.
+func (uc *UserController) GetAllUsersVuln(c *gin.Context) {
+	role, _ := c.Get("role")
+	if roleStr, _ := role.(string); !strings.EqualFold(roleStr, "admin") {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin only"})
+		return
+	}
+	users, err := uc.UserService.GetUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"users": users})
+}
+
+// GetTenantUsersVuln, MERGE (LTX) sonrası tenant-isolation BOLA yüzeyidir (VULN-13).
+// Veri YALNIZ token'daki (forge edilebilir) `tenant_id` claim'ine göre filtrelenir;
+// sunucu, çağıranın gerçekten o tenant'a ait olup olmadığını doğrulamaz. Saldırgan
+// tenant_id'yi kurban şirketinkiyle değiştirerek çapraz-tenant kullanıcılarını okur.
+func (uc *UserController) GetTenantUsersVuln(c *gin.Context) {
+	tenant, _ := c.Get("tenant_id")
+	tenantStr, _ := tenant.(string)
+	if tenantStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id claim missing"})
+		return
+	}
+	users, err := uc.UserService.GetUsersByCompanyID(tenantStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve tenant users"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"tenant": tenantStr, "records": users})
 }
 
 func (uc *UserController) RegisterUser(c *gin.Context) {

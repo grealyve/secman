@@ -5,10 +5,27 @@
 | **Hedef** | (SecMan), Go 1.22 / Gin |
 | **Amaç** | crAPI'de **izole edilemeyen / tarayıcının kaçırdığı** JWT zafiyetlerini, canlı ve **izole doğrulanabilir** bir hedefte bilerek üretmek |
 | **Branch** | `vuln` |
-| **Durum** | Uygulandı + birim testleriyle 8 forge vektörü kanıtlandı (`go test ./services/vulnjwt/` → PASS) |
+| **Durum** | Uygulandı + birim testleriyle forge vektörleri kanıtlandı (`go test ./services/vulnjwt/` → PASS). **2026-09-13: AUTH MERGE uygulandı (aşağı bkz.)** |
 
-> ⚠️ **UYARI:** `services/vulnjwt` paketi ve `/api/v1/vuln/*` route'ları **kasıtlı olarak zafiyetlidir**.
-> Yalnız DAST worker'ının JWT test setini doğrulamak içindir. Production'a gitmemelidir.
+> ⚠️ **UYARI:** `services/vulnjwt` paketi **kasıtlı olarak zafiyetlidir**. Yalnız DAST worker'ının
+> JWT test setini doğrulamak içindir. Production'a gitmemelidir.
+
+> 🔀 **MERGE GÜNCELLEMESİ (2026-09-13):** Ayrı `/api/v1/vuln/*` realm'i **kaldırıldı**. `/vuln/`
+> yolu "bilerek zafiyetli uygulama" olduğunu ele verdiği ve worker'ın standart `/api/v1/users/login`
+> credential'ıyla tespit yapılabilmesi için, zafiyetli JWT katmanı doğrudan **gerçek SecMan
+> `/api/v1/users/*` auth'u** yapıldı. Endpoint eşlemesi:
+> `POST /vuln/login → POST /users/login` (artık email+parola, gerçek DB user) ·
+> `GET /vuln/profile → GET /users/profile` (id/sub BOLA) ·
+> `GET /vuln/admin → GET /users/all` (role priv-esc) ·
+> `GET /vuln/tenant → GET /users/tenant` (tenant BOLA) · `/.well-known/jwks.json` (aynı).
+> `middlewares.Authentication` artık tüm korumalı yüzeyi `vulnjwt.VerifyVulnerable` ile doğrular →
+> alg:none/algorithm-confusion/kid/embedded/jku + exp/aud/iss-yok zafiyetleri **app genelinde**.
+> `controller/vulnJWTController.go` ve `routes/vuln_routes.go` **silindi**; mantık
+> `authController.Login` + `middlewares/authMiddleware.go` + `controller/userController.go`
+> (`GetAllUsersVuln`/`GetTenantUsersVuln`) içine taşındı. Ayrıntı ve canlı kanıt: Worker
+> `design_docs/JWT_DAST_FalsePositive_MasterPlan.md` §15.9. Aşağıdaki §1–§3 tarihsel referanstır;
+> zafiyet mantığı (`services/vulnjwt/verify.go` VULN-01..09) aynıdır, yalnız erişim yüzeyi ve giriş
+> noktası değişti.
 
 ---
 
@@ -52,32 +69,41 @@ crAPI dashboard'undaki "blanket no-verification" gölgesi burada YOKTUR.
 
 ---
 
-## 2. Endpoint Yüzeyi
+## 2. Endpoint Yüzeyi (MERGE sonrası — güncel)
+
+Tümü `http://localhost:8070` (secman-nginx) üzerinden. Ayrı `/vuln/*` realm'i yoktur; korumalı
+tüm yüzey `middlewares.Authentication` → `vulnjwt.VerifyVulnerable` ile doğrulanır.
 
 | Method | Path | İşlev |
 |---|---|---|
-| POST | `/api/v1/vuln/login` | Baseline RS256 token al (`{"email":"attacker@secman.io"}`) |
-| GET | `/.well-known/jwks.json` | RS256 public key (algorithm-confusion kaynağı) |
-| GET | `/api/v1/vuln/profile` | Subject-confusion BOLA (`sub` claim'ine göre veri) |
-| GET | `/api/v1/vuln/admin` | Privilege escalation (`role` claim'ine göre) |
-| GET | `/api/v1/vuln/tenant` | Tenant isolation BOLA (`tenant_id` claim'ine göre) |
+| POST | `/api/v1/users/login` | Baseline: gerçek DB kimlik doğrulaması (email+parola), yanıt **zafiyetli RS256** token |
+| GET | `/.well-known/jwks.json` | RS256 public key (algorithm-confusion / jku kaynağı) |
+| GET | `/api/v1/users/profile` | Subject/id BOLA (token `id` claim'ine göre profil — VULN-12) |
+| GET | `/api/v1/users/all` | Privilege escalation (token `role` claim'ine göre — VULN-10) |
+| GET | `/api/v1/users/tenant` | Tenant isolation BOLA (token `tenant_id` claim'ine göre — VULN-13) |
+| * | diğer korumalı yüzey (admin/zap/semgrep/dashboard) | Aynı kırık JWT auth'u → alg:none vb. app genelinde |
 
-Demo kimlikler: `attacker@secman.io` (user, t-001), `victim@secman.io` (user, t-002, PII: ssn/salary), `admin@secman.io` (admin, t-000).
+Gerçek kimlikler (seed `99-lutenix-profiles.sql`, 3 ayrı şirket): `secman-admin@lutenix.local /
+SecmanAdmin!123` (admin), `secman-user1@lutenix.local / SecmanUser1!` (user), `secman-user2@lutenix.local
+/ SecmanUser2!` (user). BOLA hedef değerleri (id/tenant_id) crawl/differential ile öğrenilir (guessable
+ID gerektirmez).
 
 ---
 
 ## 3. PoC — Adım Adım Exploit
 
-### 3.0 Baseline + Negative Control (izolasyon kanıtı)
+### 3.0 Baseline + Negative Control (izolasyon kanıtı) — MERGE sonrası güncel
 ```bash
-# 1) Saldırgan kendi token'ını alır
-TOK=$(curl -s localhost:4040/api/v1/vuln/login -d '{"email":"attacker@secman.io"}' | jq -r .token)
+# 1) Saldırgan gerçek hesabıyla giriş yapar (email+parola) -> zafiyetli RS256 token
+TOK=$(curl -s localhost:8070/api/v1/users/login \
+      -H 'Content-Type: application/json' \
+      -d '{"email":"secman-user1@lutenix.local","password":"SecmanUser1!"}' | jq -r .token)
 
 # 2) Baseline -> 200 (kendi profili)
-curl -s localhost:4040/api/v1/vuln/profile -H "Authorization: Bearer $TOK"
+curl -s localhost:8070/api/v1/users/profile -H "Authorization: Bearer $TOK"
 
 # 3) Negative control: imzanın son 4 baytını boz -> 401
-curl -s -o /dev/null -w "%{http_code}\n" localhost:4040/api/v1/vuln/profile \
+curl -s -o /dev/null -w "%{http_code}\n" localhost:8070/api/v1/users/profile \
      -H "Authorization: Bearer ${TOK%????}AAAA"
 ```
 `200` + `401` → sunucu imzayı gerçekten doğruluyor. Aşağıdaki her forge bu doğrulamayı atlar.

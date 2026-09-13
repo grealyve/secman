@@ -67,7 +67,14 @@ func main() {
 	routes.SemgrepRoutes(router)
 	routes.UserRoutes(router, authController)
 	routes.ZapRoutes(router)
-	routes.VulnJWTRoutes(router) // BİLEREK zafiyetli JWT test yüzeyi
+
+	// MERGE (LTX): eski /api/v1/vuln/* ayrı realm'i kaldırıldı; zafiyetli JWT auth artık
+	// tüm /api/v1/users/* yüzeyinin auth'udur (bkz. controller.Login + middlewares.Authentication).
+	// Yalnız JWKS endpoint'i gerçekçi/standart konumunda kalır — algorithm-confusion ve
+	// jku/x5u vektörleri için public key kaynağıdır.
+	router.GET("/.well-known/jwks.json", func(c *gin.Context) {
+		c.JSON(http.StatusOK, vulnjwt.JWKS())
+	})
 
 	// Catch-all route for SPA (Single Page Application)
 	router.NoRoute(func(c *gin.Context) {

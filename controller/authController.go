@@ -11,6 +11,7 @@ import (
 	"github.com/grealyve/secman/logger"
 	"github.com/grealyve/secman/models"
 	"github.com/grealyve/secman/services"
+	"github.com/grealyve/secman/services/vulnjwt"
 )
 
 type AuthController struct {
@@ -57,7 +58,13 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := ac.AuthService.GenerateToken(user.ID, user.Role)
+	// MERGE (LTX): SecMan'in tek auth token'ı artık zafiyetli RS256 vulnjwt token'ıdır.
+	// Gerçek DB kimlik doğrulaması (email+parola) yukarıda yapıldı; burada BİLEREK
+	// zafiyetli token üretilir (alg:none/algorithm-confusion/kid/embedded/jku +
+	// exp/aud/iss doğrulaması yok). Böylece TÜM korumalı yüzey tek bir kırık JWT
+	// auth'una dayanır ve DAST worker'ı standart /users/login credential'ıyla
+	// zafiyetleri tespit eder. HS256 GenerateToken artık kullanılmaz.
+	token, err := vulnjwt.IssueUserToken(user.ID.String(), user.Email, user.Role, user.CompanyID.String())
 	if err != nil {
 		logger.Log.Errorln("Error generating token")
 		c.JSON(http.StatusInternalServerError, gin.H{
