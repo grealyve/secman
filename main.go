@@ -61,7 +61,12 @@ func main() {
 	router.StaticFile("/favicon.ico", "./dist/favicon.ico")
 
 	// API routes
-	routes.AcunetixRoutes(router)
+	// Acunetix routes are disabled: no Acunetix backend exists in any environment, so these
+	// handlers proxy to an unreachable scanner (scanner_settings.scanner_url, e.g.
+	// https://192.168.1.6:3443) through an HTTP client with no timeout (utils.go), which blocks
+	// until the OS connect timeout and stalls any scan that touches them. Re-enable once a
+	// reachable Acunetix is configured.
+	// routes.AcunetixRoutes(router)
 	routes.AdminRoutes(router)
 	routes.DashboardRoutes(router)
 	routes.SemgrepRoutes(router)

