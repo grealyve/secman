@@ -47,13 +47,7 @@ func main() {
 	router.Use(middlewares.CorsMiddleware())
 
 	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "ok",
-			"message":   "SecMan is running",
-			"timestamp": "2025-06-30",
-		})
-	})
+	router.GET("/health", controller.NewSystemController().Health)
 
 	// Serve static files (frontend build)
 	router.Static("/static", "./dist/assets")
@@ -69,6 +63,8 @@ func main() {
 	// routes.AcunetixRoutes(router)
 	routes.AdminRoutes(router)
 	routes.DashboardRoutes(router)
+	// Deliberately undocumented (shadow API test surface): never add these to the OpenAPI spec.
+	routes.InternalRoutes(router)
 	routes.SemgrepRoutes(router)
 	routes.UserRoutes(router, authController)
 	routes.ZapRoutes(router)
